@@ -83,3 +83,7 @@ Since all code resides in `index.html`:
 ## 6. 📄 License
 
 This project is open-source and available under the [MIT License](LICENSE).
+
+## AI usage in development
+
+100%
