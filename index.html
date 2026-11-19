@@ -375,6 +375,27 @@
                     </div>
 
                     <div class="p-4">
+                        <div id="remove-participant-banner" role="alert" aria-live="polite" class="hidden mb-3 p-3 rounded bg-terracotta/10 border-2 border-terracotta shadow-tactile-sm">
+                            <div class="flex items-start gap-2.5">
+                                <div class="w-6 h-6 bg-terracotta text-paper border border-ink flex items-center justify-center shrink-0 text-[11px] mt-0.5">
+                                    <i class="fa-solid fa-user-minus"></i>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="font-mono text-[10px] font-bold uppercase text-terracotta">CONFIRM REMOVAL</div>
+                                    <p class="text-xs text-ink mt-0.5 leading-snug">
+                                        Remove <strong id="remove-banner-participant-name" class="break-words"></strong> from this Secret Santa exchange?
+                                    </p>
+                                    <div class="flex items-center gap-2 mt-2.5">
+                                        <button type="button" onclick="cancelRemoveParticipant()" class="btn-tactile px-2.5 py-1 rounded text-[10px] font-mono font-bold uppercase bg-paper text-ink">
+                                            Cancel
+                                        </button>
+                                        <button type="button" onclick="confirmRemoveParticipant()" class="btn-tactile px-2.5 py-1 rounded text-[10px] font-mono font-bold uppercase bg-terracotta text-paper">
+                                            Confirm Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div id="participants-list" class="space-y-2 max-h-80 overflow-y-auto pr-1">
                             <!-- Generato dinamicamente -->
                         </div>
@@ -677,6 +698,7 @@
         let currentRoomData = null;
         let unsubscribeCurrentRoom = null;
         let pendingRevealParticipantId = null;
+        let pendingRemoveParticipantId = null;
 
         // Fallback memoria in-session se offline
         let useLocalMemoryFallback = false;
@@ -1042,14 +1064,29 @@
             await saveCurrentRoomToDatabase();
         };
 
-        window.removeParticipant = async function(participantId) {
+        window.removeParticipant = function(participantId) {
             if (!currentRoomData || currentRoomData.isDrawn) return;
             const target = (currentRoomData.participants || []).find(p => p.id === participantId);
+            if (!target) return;
+            pendingRemoveParticipantId = participantId;
+            document.getElementById('remove-banner-participant-name').textContent = target.name;
+            document.getElementById('remove-participant-banner').classList.remove('hidden');
+        };
+
+        window.cancelRemoveParticipant = function() {
+            pendingRemoveParticipantId = null;
+            document.getElementById('remove-participant-banner').classList.add('hidden');
+        };
+
+        window.confirmRemoveParticipant = async function() {
+            const participantId = pendingRemoveParticipantId;
+            const target = (currentRoomData?.participants || []).find(p => p.id === participantId);
+            window.cancelRemoveParticipant();
+            if (!currentRoomData || currentRoomData.isDrawn || !target) return;
+
             currentRoomData.participants = (currentRoomData.participants || []).filter(p => p.id !== participantId);
             await saveCurrentRoomToDatabase();
-            if (target) {
-                showToast(`"${target.name}" removed from roster`, "info");
-            }
+            showToast(`"${target.name}" removed from roster`, "info");
         };
 
         // Algoritmo Single-Cycle Derangement:
@@ -1223,6 +1260,10 @@
         function renderParticipantsRoster(participants, isDrawn) {
             const countBadge = document.getElementById('participants-count-badge');
             const listEl = document.getElementById('participants-list');
+
+            if (isDrawn && pendingRemoveParticipantId) {
+                window.cancelRemoveParticipant();
+            }
 
             countBadge.textContent = `${participants.length} ${participants.length === 1 ? 'PERSON' : 'PEOPLE'}`;
 
